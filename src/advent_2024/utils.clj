@@ -1,5 +1,6 @@
 (ns advent-2024.utils
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [clojure.string :as string])
   (:gen-class)
   )
 
@@ -76,4 +77,13 @@
    (if (empty? (rest l)) acc (frame-2 (rest l) (conj acc [(first l) (first (rest l))])))
    )
   ([l] (frame-2 l []))
+  )
+
+(defn all-indexes-of
+  ([c s acc st]
+   (let [i (string/index-of s c st)]
+     (if (nil? i) acc (all-indexes-of c s (conj acc i) (+ 1 i)))
+     )
+   )
+  ([c s] (all-indexes-of c s [] 0))
   )

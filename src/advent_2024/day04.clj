@@ -1,95 +1,120 @@
 (ns advent-2024.day04
-  (:require [advent-2024.utils :as utils])
-  (:gen-class))
+  (:require [advent-2024.utils :as utils]
+            [clojure.string :as string]
+            )
+  (:gen-class)
+  )
 
 (def input (utils/read-test-input "resources/input/day04.in"))
 
-(defn coords
-  ([lines row acc]
-   (if (empty? lines) acc
-                      (coords (rest lines) (+ row 1)
-                              (reduce-kv #(assoc %1 %3 (conj (%1 %3) [row %2]))
-                                         acc
-                                         (map-indexed #(clojure.lang.MapEntry/create %1 %2) (first lines))))
-                      )
+(def grab-h-right (fn [n i line]
+                    (if (>= (+ i n) (count line)) nil
+                                                  (subs line (+ i 1) (+ i n 1))
+                                                  )
+                    ))
+(def grab-h-left (fn [n i line] (if (< (- i n) 0) nil (string/reverse (subs line (- i n) i)))))
+
+(defn grab-from-rows
+  ([lines n row col rf cf acc]
+   (if (= n 0) acc (grab-from-rows lines (- n 1) (rf row) (cf col) rf cf (str acc (subs (lines row) col (+ col 1)))))
    )
-  ([lines] (coords lines 0 {\X [], \M [], \A [], \S []}))
+  ([lines n row col f] (grab-from-rows lines n row col f identity ""))
+  ([lines n row col rf cf] (grab-from-rows lines n row col rf cf ""))
   )
 
-(defn adjacent? [c1 c2]
-  (and (<= (abs (- (c1 0) (c2 0))) 1)
-       (<= (abs (- (c1 1) (c2 1))) 1)
-       )
-  )
-
-(def coord-input (coords input))
-(def xs (coord-input \X))
-(def ms (coord-input \M))
-
-(defn reach-and-keep
-  "Returns a vector where the first element is a map of points
-  from c1 to reachable points from c2
-  and the second element is a set of reachable elements from c2
-  "
-  ([c1 c2 r]
-   (if (empty? c1) r
-                   (let [x (first c1) m (filter #(adjacent? x %) c2)]
-                     (if (empty? m) (reach-and-keep (rest c1) c2 r)
-                                    (reach-and-keep (rest c1) c2 (assoc r x m))
-                                    )
-                     )
-                   ))
-  ([c1 c2] (reach-and-keep c1 c2 {}))
-  )
-
-(def lookup-order [\X \M \A \S])
-
-(defn gen-append
-  [coll to-add]
-  (map #(conj coll %) to-add)
-  )
-
-(def partially-valid-diag-only?
-  (fn [l]
-    (and (= 1 (count (distinct (map #(let [[[x0 y0] [x1 y1]] %]
-                                       [(- x0 x1) (- y0 y1)]
-                                       ) (utils/frame-2 l)))))
-         (or (< (count l) 1) (and (not (= (- ((first l) 0) ((first (rest l)) 0)) 0))
-                                  (not (= (- ((first l) 1) ((first (rest l)) 1)) 0))
-                                  ))
-         )
+(def grab-v-up
+  (fn [n row col lines]
+    (if (< (- row n) 0) nil
+                        (grab-from-rows lines n (- row 1) col #(- % 1))
+                        )
     )
   )
 
-(def partially-valid?
-  (fn [l]
-    (or
-      (= 1 (count (distinct (map last l))))
-      (= 1 (count (distinct (map first l))))
-      (partially-valid-diag-only? l)
+(def grab-v-down
+  (fn [n row col lines]
+    (if (>= (+ row n) (count lines)) nil
+                                     (grab-from-rows lines n (+ row 1) col #(+ % 1))
+                                     )
+    )
+  )
+
+(def grab-diag-u-r
+  (fn [n row col lines]
+    (if (or (< (- row n) 0) (>= (+ col n) (count (lines 0)))) nil
+                                                              (grab-from-rows lines n (- row 1) (+ col 1) dec inc)
+                                                              )
+    )
+  )
+(def grab-diag-u-l
+  (fn [n row col lines]
+    (if (or (< (- row n) 0) (< (- col n) 0)) nil
+                                             (grab-from-rows lines n (- row 1) (- col 1) dec dec)
+                                             )
+    )
+  )
+
+(def grab-diag-d-r
+  (fn [n row col lines]
+    (if (or (>= (+ row n) (count lines)) (>= (+ col n) (count (lines 0)))) nil
+                                                                           (grab-from-rows lines n (+ row 1) (+ col 1) inc inc)
+                                                                           )
+    )
+  )
+(def grab-diag-d-l
+  (fn [n row col lines]
+    (if (or (>= (+ row n) (count lines)) (< (- col n) 0)) nil
+                                                          (grab-from-rows lines n (+ row 1) (- col 1) inc dec)
+                                                          )
+    )
+  )
+
+(def cross-check
+  (fn [row col lines]
+    (let [row-above (lines (- row 1)) row-below (lines (+ row 1))]
+      (and
+        (not (nil? (re-matches #"MS|SM" (str (subs row-above (- col 1) col) (subs row-below (+ col 1) (+ col 2))))))
+        (not (nil? (re-matches #"MS|SM" (str (subs row-above (+ col 1) (+ col 2)) (subs row-below (- col 1) col)))))
+        )
       )
     )
   )
 
-(defn xmas
-  ([letters sols pv?]
-   (if (empty? letters) sols
-                        (let [letter (first letters)        ; letter that needs to be added
-                              curr (coord-input letter)     ; current letter's coordinates
-                              prev (set (map last sols))    ; set of coordinates on top of which we add the current letter
-                              pairs (reach-and-keep prev curr) ; map of coord from prev to adjacent letters from curr
-                              fil-sols (filter #(utils/contains-coll? (keys pairs) (last %)) sols)
-                              updated-sols (reduce concat (map (fn [s] (gen-append s (pairs (last s)))) fil-sols))
-                              updated-valid-sols (filter pv? updated-sols)
-                              ]
-                          (xmas (rest letters) updated-valid-sols pv?)
-                          )
+(defn grab-star-count
+  [lines row col]
+  (count (filter #(= "MAS" %) [(grab-h-left 3 col (lines row))
+                               (grab-h-right 3 col (lines row))
+                               (grab-v-up 3 row col lines)
+                               (grab-v-down 3 row col lines)
+                               (grab-diag-u-l 3 row col lines)
+                               (grab-diag-u-r 3 row col lines)
+                               (grab-diag-d-l 3 row col lines)
+                               (grab-diag-d-r 3 row col lines)
+                               ]))
+
+  )
+
+(defn xmas-p1
+  ([lines r acc]
+   (if (empty? lines) acc
+                      (let [xs (utils/all-indexes-of \X (first lines))]
+                        (xmas-p1 (rest lines) (+ r 1) (+ acc (reduce + (map #(grab-star-count input r %) xs))))
                         )
+                      )
    )
   )
 
-(def p1-xmas (xmas (rest lookup-order) (map vector xs) partially-valid?))
-(println "P1:" (count p1-xmas))
-(def p2-order (xmas [\A \S] (map vector ms) partially-valid-diag-only?))
-(def valid-x-mas (filter #(= 2 (count (% 1))) (group-by #(% 1) p2-order)))
-(println "P2:" (count valid-x-mas))
+(defn xmas-p2
+  ([lines r acc]
+   (if (empty? (rest lines)) acc
+                             (let [as (utils/all-indexes-of \A (first lines))]
+                               (xmas-p2 (rest lines) (+ r 1) (+ acc (count (filter #(and (> % 0)
+                                                                                         (< % (- (count (input 0)) 1))
+                                                                                         (cross-check r % input)
+                                                                                         ) as)))))
+                             )
+   )
+  )
+
+
+(println "P1:" (xmas-p1 input 0 0))
+(println "P2:" (xmas-p2 (rest input) 1 0))
