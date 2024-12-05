@@ -59,7 +59,7 @@
   ([coll-ref coll sol]
    (if (empty? coll-ref) sol
                          (if (contains-coll? coll (first coll-ref)) (coll-diff (rest coll-ref) coll sol)
-                                                                    (coll-diff (rest coll-ref) coll (cons (first coll-ref) sol))
+                                                                    (coll-diff (rest coll-ref) coll (conj sol (first coll-ref) ))
                                                                     )
                          )
    )
@@ -79,6 +79,15 @@
   ([l] (frame-2 l []))
   )
 
+(defn move-at
+  [v i target]
+  (into [] (if (< i target)
+    (concat (subvec v 0 i) (subvec v (+ i 1) (+ 1 target)) [(v i)] (subvec v (+ target 1)) )
+    (concat (subvec v 0 target) [(v i)] (subvec v target i)
+            (if (= i (- (count v) 1)) [] (subvec v (+ i 1))))
+    ))
+  )
+
 (defn all-indexes-of
   ([c s acc st]
    (let [i (string/index-of s c st)]
@@ -86,4 +95,13 @@
      )
    )
   ([c s] (all-indexes-of c s [] 0))
+  )
+
+(defn v-contains?
+  [v n]
+  (if (empty? v) false
+                 (or (= n (first v))
+                     (v-contains? (rest v) n)
+                     )
+                 )
   )
