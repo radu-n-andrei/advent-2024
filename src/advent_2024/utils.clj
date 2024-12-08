@@ -59,7 +59,7 @@
   ([coll-ref coll sol]
    (if (empty? coll-ref) sol
                          (if (contains-coll? coll (first coll-ref)) (coll-diff (rest coll-ref) coll sol)
-                                                                    (coll-diff (rest coll-ref) coll (conj sol (first coll-ref) ))
+                                                                    (coll-diff (rest coll-ref) coll (conj sol (first coll-ref)))
                                                                     )
                          )
    )
@@ -70,22 +70,6 @@
   "Applies f to the values of m"
   [m f]
   (reduce #(assoc %1 (%2 0) (f (%2 1))) m m)
-  )
-
-(defn frame-2
-  ([l acc]
-   (if (empty? (rest l)) acc (frame-2 (rest l) (conj acc [(first l) (first (rest l))])))
-   )
-  ([l] (frame-2 l []))
-  )
-
-(defn move-at
-  [v i target]
-  (into [] (if (< i target)
-    (concat (subvec v 0 i) (subvec v (+ i 1) (+ 1 target)) [(v i)] (subvec v (+ target 1)) )
-    (concat (subvec v 0 target) [(v i)] (subvec v target i)
-            (if (= i (- (count v) 1)) [] (subvec v (+ i 1))))
-    ))
   )
 
 (defn all-indexes-of
@@ -104,4 +88,12 @@
                      (v-contains? (rest v) n)
                      )
                  )
+  )
+
+(defn combi-2
+  ([l acc]
+   (if (empty? l) acc
+                  (combi-2 (rest l) (concat acc (into [] (map (fn [el] [(first l) el]) (rest l)))))
+                  ))
+  ([l] (combi-2 l []))
   )
