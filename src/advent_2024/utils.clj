@@ -81,6 +81,11 @@
   ([c s] (all-indexes-of c s [] 0))
   )
 
+(defn all-v-indexes-of
+  ([el v]
+   (map #(% 0) (filter #(= (% 1) el) (map-indexed (fn [i x] [i x]) v)))
+  ))
+
 (defn v-contains?
   [v n]
   (if (empty? v) false
@@ -97,5 +102,3 @@
                   ))
   ([l] (combi-2 l []))
   )
-
-(defn find-first [coll cond] (first (filter cond coll)))
