@@ -68,40 +68,40 @@
 ;; inefficient P2 but i just want to move on...
 (def in-mapped-2 (utils/map-values in-mapped #(conj % [])))
 
-(def sorted-boys (into [] (sort-by #(first %) (map #(let [[k v] %] [k v]) in-mapped-2))))
-
-(defn rebuild-as-sorted
-  [in index new-item]
-  (into [] (concat (subvec in 0 index) [new-item] (subvec in (+ index 1))))
-  )
+(def sorted-by-index (into (sorted-map-by <) in-mapped-2))
 
 (defn move-files
   [curr-index partition-index in]
   (if (= curr-index partition-index) in
                                      (let [
-                                           to-move ((in-mapped-2 curr-index) 0)
+                                           to-move ((in curr-index) 0)
                                            move-at (utils/find-first in #(and (>= ((% 1) 1) to-move) (< (% 0) curr-index)))
                                            ]
                                        (if (nil? move-at) (move-files (dec curr-index) partition-index in)
                                                           (move-files (dec curr-index) partition-index
-                                                                      (let [curr-box (in curr-index)]
-                                                                        (rebuild-as-sorted
-                                                                        (rebuild-as-sorted in
-                                                                                           (move-at 0)
-                                                                                           [(move-at 0)
-                                                                                            [((move-at 1) 0) (- ((move-at 1) 1) to-move) (concat ((move-at 1) 2) (repeat to-move curr-index))]])
+                                                                      (assoc
+                                                                        (assoc in
+                                                                          (move-at 0)
+                                                                          [((move-at 1) 0) (- ((move-at 1) 1) to-move)
+                                                                           (concat ((move-at 1) 2) (repeat to-move curr-index))])
                                                                         curr-index
-                                                                        [curr-index [0 ((curr-box 1) 1) (into [] (concat (repeat to-move 0) ((curr-box 1) 2)))]])
-                                                                        )
-
+                                                                        [0 ((in curr-index) 1)
+                                                                         (into [] (concat (repeat to-move 0) ((in curr-index) 2)))])
                                                                       ))
                                        ))
   )
 
-(time (def ch1 (move-files max-id (* 2 (/ max-id 3)) sorted-boys)))
-(time (def ch2 (move-files (* 2 (/ max-id 3)) (/ max-id 3) ch1)))
-(time (def ch3 (move-files (/ max-id 3) 0 ch2)))
-(time (def exp (map (fn [n] (let [[index [size spaces occupied]] n]
-                        (concat (repeat size index) occupied (repeat spaces 0))
-                                 )) ch3)))
-(time (println "P2:" (reduce + (map-indexed (fn [i v] (* i v)) (reduce concat exp)))))
+(def ch1 (move-files max-id (* 2 (/ max-id 3)) sorted-by-index))
+(def ch2 (move-files (* 2 (/ max-id 3)) (/ max-id 3) ch1))
+(def ch3 (move-files (/ max-id 3) 0 ch2))
+
+(println "P2" (first (reduce (fn [acc i]
+                                 (let [[k [b s o]] i
+                                       [score index] acc
+                                       ]
+                                   [
+                                    (+ score (* (reduce + (range index (+ index b))) k) (reduce + (utils/vector-merge * o (range (+ index b) (+ index b (count o))))))
+                                    (+ index b s (count o))
+                                    ]
+                                   )
+                                 ) [0 0] ch3)))
