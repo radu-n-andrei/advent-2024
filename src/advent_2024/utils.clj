@@ -97,3 +97,5 @@
                   ))
   ([l] (combi-2 l []))
   )
+
+(defn find-first [coll cond] (first (filter cond coll)))
